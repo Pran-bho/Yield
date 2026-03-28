@@ -171,23 +171,10 @@ async function checkHealth(): Promise<boolean> {
 
 // --- Init ---
 async function init() {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  if (!tab.id) return;
-
-  const [pageResponse, isHealthy] = await Promise.all([
-    browser.tabs.sendMessage(tab.id, { type: "IS_FINANCIAL_PAGE" }).catch(() => null),
-    checkHealth(),
-  ]);
-
+  const isHealthy = await checkHealth();
   healthIndicator.textContent = isHealthy ? "Connected" : "Offline";
   healthIndicator.className = isHealthy ? "health-ok" : "health-offline";
-
-  if (pageResponse?.isFinancial) {
-    scanBtn.disabled = false;
-    setStatus("Financial article detected — ready to scan.", "info");
-  } else {
-    setStatus("No financial article detected on this page.", "muted");
-  }
+  scanBtn.disabled = false;
 }
 
 init();
