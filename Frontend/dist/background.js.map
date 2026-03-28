@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/background/background.ts"],
+  "sourcesContent": ["browser.runtime.onInstalled.addListener(() => {\n  console.log(\"[Yield] Extension installed.\");\n});\n"],
+  "mappings": ";;;AAAA,UAAQ,QAAQ,YAAY,YAAY,MAAM;AAC5C,YAAQ,IAAI,8BAA8B;AAAA,EAC5C,CAAC;",
+  "names": []
+}

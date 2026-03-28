@@ -1,0 +1,13 @@
+{
+  "name": "yield-extension",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.0.0"
+  }
+}

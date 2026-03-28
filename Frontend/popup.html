@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="src/popup/popup.css" />
+  <title>Yield</title>
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <h1>Yield</h1>
+      <span id="health-indicator" class="health-offline">Checking...</span>
+    </header>
+
+    <section id="holdings-section">
+      <h2>Your Holdings</h2>
+      <ul id="holdings-list"></ul>
+    </section>
+
+    <section id="scan-section">
+      <button id="scan-btn" disabled>Scan This Page</button>
+      <p id="scan-status" class="status-muted"></p>
+    </section>
+
+    <section id="result-section" hidden>
+      <h2>Analysis</h2>
+      <div id="result-content"></div>
+    </section>
+
+  </div>
+  <script src="dist/popup.js"></script>
+</body>
+</html>
