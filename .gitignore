@@ -10,3 +10,4 @@ coverage/
 
 backend/__pycache__/engine.cpython-314.pyc
 backend/__pycache__/server.cpython-314.pyc
+backend/__pycache__/server.cpython-314.pyc
