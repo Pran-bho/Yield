@@ -1,48 +1,38 @@
-const FINANCIAL_KEYWORDS = [
-  "stock", "shares", "earnings", "revenue", "nasdaq", "nyse",
-  "market cap", "dividend", "investor", "portfolio", "quarter",
-  "sec filing", "ipo", "valuation", "equity", "bull market", "bear market",
-  "hedge fund", "short selling", "options", "futures", "trading volume",
-  "price target", "analyst", "guidance", "fiscal", "ebitda", "diesel",
-];
+import { ArticleData } from "../types";
 
-function isFinancialPage(): boolean {
-  const text = document.body.innerText.toLowerCase();
-  const matchCount = FINANCIAL_KEYWORDS.filter((kw) => text.includes(kw)).length;
-  return matchCount >= 3;
+function extractArticle(): ArticleData {
+  const title = document.title || "";
+
+  const candidates = [
+    document.querySelector("article"),
+    document.querySelector('[role="main"]'),
+    document.querySelector("main"),
+    document.querySelector(".article-body"),
+    document.querySelector(".post-content"),
+    document.querySelector(".entry-content"),
+    document.body,
+  ];
+
+  const bodyEl = candidates.find(Boolean) as Element;
+  const clone = bodyEl.cloneNode(true) as Element;
+
+  const junk = [
+    "nav", "header", "footer", "aside", "script", "style",
+    "noscript", "iframe", "form", ".ad", ".ads", ".advertisement",
+    ".cookie-banner", ".popup", ".modal", ".sidebar", ".related",
+    ".comments", ".social-share", ".newsletter", ".promo",
+  ];
+  junk.forEach((sel) => {
+    clone.querySelectorAll(sel).forEach((el) => el.remove());
+  });
+
+  const body = (clone as HTMLElement).innerText || clone.textContent || "";
+  return { title: title.trim(), body: body.trim() };
 }
 
-function extractArticleText(): string {
-  // Try progressively broader containers
-  const container =
-    document.querySelector("article") ??
-    document.querySelector('[role="article"]') ??
-    document.querySelector("main") ??
-    document.querySelector('[role="main"]') ??
-    document.body;
-
-  const clone = container.cloneNode(true) as HTMLElement;
-
-  // Strip non-content elements
-  clone
-    .querySelectorAll("script, style, nav, footer, header, aside, [role='navigation'], [role='banner'], [role='complementary'], .ad, .advertisement, .sidebar")
-    .forEach((el) => el.remove());
-
-  // Collapse whitespace
-  const text = clone.innerText
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, 8000);
-
-  return text;
-}
-
-browser.runtime.onMessage.addListener((message: { type: string }) => {
-  if (message.type === "IS_FINANCIAL_PAGE") {
-    return Promise.resolve({ isFinancial: isFinancialPage() });
-  }
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "EXTRACT_ARTICLE") {
-    return Promise.resolve({ text: extractArticleText() });
+    sendResponse(extractArticle());
   }
-  return false;
+  return true;
 });

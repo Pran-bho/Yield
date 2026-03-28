@@ -1,25 +1,43 @@
 const esbuild = require("esbuild");
+const path = require("path");
+const fs = require("fs");
 
-const isWatch = process.argv.includes("--watch");
-const shared = { bundle: true, sourcemap: true, target: "firefox109" };
+const outdir = path.resolve(__dirname, "dist");
+if (!fs.existsSync(outdir)) fs.mkdirSync(outdir, { recursive: true });
 
-async function build() {
-  const contexts = await Promise.all([
-    esbuild.context({ ...shared, entryPoints: ["src/popup/popup.ts"], outfile: "dist/popup.js" }),
-    esbuild.context({ ...shared, entryPoints: ["src/content/content.ts"], outfile: "dist/content.js" }),
-    esbuild.context({ ...shared, entryPoints: ["src/background/background.ts"], outfile: "dist/background.js" }),
-  ]);
+const shared = {
+  bundle: true,
+  minify: false,
+  sourcemap: false,
+  target: ["chrome120"],
+  outdir,
+  absWorkingDir: __dirname,
+};
 
-  if (isWatch) {
-    await Promise.all(contexts.map((ctx) => ctx.watch()));
-    console.log("[Yield] Watching for changes...");
-  } else {
-    await Promise.all(contexts.map((ctx) => ctx.rebuild().then(() => ctx.dispose())));
-    console.log("[Yield] Build complete.");
-  }
-}
-
-build().catch((err) => {
-  console.error(err);
+Promise.all([
+  esbuild.build({
+    ...shared,
+    entryPoints: [path.resolve(__dirname, "src/popup/popup.ts")],
+    outdir,
+  }),
+  esbuild.build({
+    ...shared,
+    entryPoints: [path.resolve(__dirname, "src/content/content.ts")],
+    outdir,
+  }),
+  esbuild.build({
+    ...shared,
+    entryPoints: [path.resolve(__dirname, "src/background/background.ts")],
+    outdir,
+  }),
+]).then(() => {
+  return fs.promises.copyFile(
+    path.resolve(__dirname, "src/popup/popup.css"),
+    path.resolve(outdir, "popup.css")
+  );
+}).then(() => {
+  console.log("Build complete → dist/");
+}).catch((e) => {
+  console.error(e);
   process.exit(1);
 });

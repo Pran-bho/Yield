@@ -1,381 +1,215 @@
 "use strict";
 (() => {
-  // src/popup/data.ts
-  function makeRng(seed) {
-    let s = seed;
-    return () => {
-      s |= 0;
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function normalPair(rand) {
-    const u1 = Math.max(rand(), 1e-10);
-    const u2 = rand();
-    const mag = Math.sqrt(-2 * Math.log(u1));
-    return [mag * Math.cos(2 * Math.PI * u2), mag * Math.sin(2 * Math.PI * u2)];
-  }
-  function gbm(start, days, drift, vol, seed) {
-    const rand = makeRng(seed);
-    const prices = [start];
-    for (let i = 1; i < days; i++) {
-      const [z] = normalPair(rand);
-      const prev = prices[i - 1];
-      prices.push(prev * Math.exp(drift - 0.5 * vol * vol + vol * z));
-    }
-    return prices.map((p) => Math.round(p * 100) / 100);
-  }
-  var DAYS = 30;
-  var HOLDINGS = [
-    {
-      ticker: "AAPL",
-      name: "Apple Inc.",
-      shares: 10,
-      avgBuyPrice: 145,
-      // mild upward drift, moderate vol (~1.4%/day)
-      priceHistory: gbm(163.5, DAYS, 6e-4, 0.014, 1001),
-      get currentPrice() {
-        return this.priceHistory[this.priceHistory.length - 1];
-      }
-    },
-    {
-      ticker: "NVDA",
-      name: "NVIDIA Corp.",
-      shares: 5,
-      avgBuyPrice: 410,
-      // strong upward drift, high vol (~2.5%/day)
-      priceHistory: gbm(740, DAYS, 18e-4, 0.025, 2002),
-      get currentPrice() {
-        return this.priceHistory[this.priceHistory.length - 1];
-      }
-    },
-    {
-      ticker: "MSFT",
-      name: "Microsoft Corp.",
-      shares: 8,
-      avgBuyPrice: 290,
-      // mild upward drift, low vol (~1.1%/day)
-      priceHistory: gbm(382, DAYS, 7e-4, 0.011, 3003),
-      get currentPrice() {
-        return this.priceHistory[this.priceHistory.length - 1];
-      }
-    },
-    {
-      ticker: "TSLA",
-      name: "Tesla Inc.",
-      shares: 3,
-      avgBuyPrice: 220,
-      // slight downward drift, very high vol (~3.0%/day) — ends underwater
-      priceHistory: gbm(210, DAYS, -12e-4, 0.03, 4004),
-      get currentPrice() {
-        return this.priceHistory[this.priceHistory.length - 1];
-      }
-    }
-  ];
-
   // src/popup/popup.ts
-  var DESKTOP_URL = "http://localhost:8080";
-  function renderSparkline(prices, positive) {
-    const W = 72, H = 28;
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const range = max - min || 1;
-    const pts = prices.map((p, i) => {
-      const x = i / (prices.length - 1) * W;
-      const y = H - (p - min) / range * (H - 4) - 2;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(" ");
-    const color = positive ? "#4ade80" : "#f87171";
-    const fillColor = positive ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)";
-    const firstX = "0";
-    const lastX = W.toFixed(1);
-    const baseline = H.toFixed(1);
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", String(W));
-    svg.setAttribute("height", String(H));
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    const area = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    const firstPt = pts.split(" ")[0];
-    const lastPt = pts.split(" ").slice(-1)[0];
-    area.setAttribute(
-      "points",
-      `${firstX},${baseline} ${pts} ${lastX},${baseline}`
-    );
-    area.setAttribute("fill", fillColor);
-    area.setAttribute("stroke", "none");
-    svg.appendChild(area);
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    line.setAttribute("points", pts);
-    line.setAttribute("fill", "none");
-    line.setAttribute("stroke", color);
-    line.setAttribute("stroke-width", "1.5");
-    line.setAttribute("stroke-linecap", "round");
-    line.setAttribute("stroke-linejoin", "round");
-    svg.appendChild(line);
-    const [ex, ey] = lastPt.split(",");
-    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    dot.setAttribute("cx", ex);
-    dot.setAttribute("cy", ey);
-    dot.setAttribute("r", "2");
-    dot.setAttribute("fill", color);
-    svg.appendChild(dot);
-    return svg;
-  }
-  var holdingsList = document.getElementById("holdings-list");
-  HOLDINGS.forEach((stock) => {
-    const pnl = (stock.currentPrice - stock.avgBuyPrice) * stock.shares;
-    const pnlPct = (stock.currentPrice - stock.avgBuyPrice) / stock.avgBuyPrice * 100;
-    const positive = pnl >= 0;
-    const pnlSign = positive ? "+" : "";
-    const pnlClass = positive ? "pos" : "neg";
-    const li = document.createElement("li");
-    li.className = `holding-item ${positive ? "holding-pos" : "holding-neg"}`;
-    const left = document.createElement("div");
-    left.className = "holding-left";
-    left.innerHTML = `
-    <span class="ticker">${stock.ticker}</span>
-    <span class="holding-meta">${stock.shares} sh \xB7 $${stock.avgBuyPrice.toFixed(2)}</span>
-  `;
-    const mid = document.createElement("div");
-    mid.className = "holding-spark";
-    mid.appendChild(renderSparkline(stock.priceHistory, positive));
-    const right = document.createElement("div");
-    right.className = "holding-right";
-    right.innerHTML = `
-    <span class="current-price">$${stock.currentPrice.toFixed(2)}</span>
-    <span class="pnl ${pnlClass}">${pnlSign}$${Math.abs(pnl).toFixed(0)} (${pnlSign}${pnlPct.toFixed(1)}%)</span>
-  `;
-    li.appendChild(left);
-    li.appendChild(mid);
-    li.appendChild(right);
-    holdingsList.appendChild(li);
+  var API = "http://localhost:8000";
+  var holdings = [];
+  var newsLoaded = false;
+  var engineDot = document.getElementById("engineDot");
+  var scanBtn = document.getElementById("scanBtn");
+  var statusEl = document.getElementById("status");
+  var resultsEl = document.getElementById("results");
+  var summaryEl = document.getElementById("summaryText");
+  var chipsWrap = document.getElementById("chipsWrap");
+  var chipsEl = document.getElementById("chips");
+  var footerTime = document.getElementById("footerTime");
+  var newsList = document.getElementById("newsList");
+  var newsRefreshBtn = document.getElementById("newsRefreshBtn");
+  document.addEventListener("DOMContentLoaded", async () => {
+    footerTime.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    await loadHoldings();
+    checkEngine();
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        const target = document.getElementById(`tab-${tab.dataset.tab}`);
+        if (target)
+          target.classList.add("active");
+        if (tab.dataset.tab === "news" && !newsLoaded) {
+          loadNews();
+        }
+      });
+    });
+    scanBtn.addEventListener("click", handleScan);
+    newsRefreshBtn.addEventListener("click", () => {
+      newsLoaded = false;
+      loadNews();
+    });
   });
-  var totalCost = HOLDINGS.reduce((s, h) => s + h.avgBuyPrice * h.shares, 0);
-  var totalValue = HOLDINGS.reduce((s, h) => s + h.currentPrice * h.shares, 0);
-  var totalPnl = totalValue - totalCost;
-  var totalPct = totalPnl / totalCost * 100;
-  var portfolioPositive = totalPnl >= 0;
-  var summaryEl = document.getElementById("portfolio-summary");
-  summaryEl.innerHTML = `
-  <span class="summary-value">$${totalValue.toFixed(2)}</span>
-  <span class="summary-pnl ${portfolioPositive ? "pos" : "neg"}">
-    ${portfolioPositive ? "+" : ""}$${Math.abs(totalPnl).toFixed(2)} (${portfolioPositive ? "+" : ""}${totalPct.toFixed(1)}%)
-  </span>
-`;
-  var viewToggle = document.getElementById("view-toggle");
-  var iconGraph = document.getElementById("icon-graph");
-  var iconCompact = document.getElementById("icon-compact");
-  var graphMode = true;
-  function applyViewMode() {
-    if (graphMode) {
-      holdingsList.classList.remove("compact-mode");
-      iconGraph.hidden = false;
-      iconCompact.hidden = true;
-      viewToggle.title = "Switch to compact";
-    } else {
-      holdingsList.classList.add("compact-mode");
-      iconGraph.hidden = true;
-      iconCompact.hidden = false;
-      viewToggle.title = "Switch to graph";
-    }
-  }
-  browser.storage.local.get("graphMode").then((r) => {
-    graphMode = r.graphMode !== false;
-    applyViewMode();
-  });
-  viewToggle.addEventListener("click", () => {
-    graphMode = !graphMode;
-    browser.storage.local.set({ graphMode });
-    applyViewMode();
-  });
-  var scanBtn = document.getElementById("scan-btn");
-  var scanStatus = document.getElementById("scan-status");
-  var resultSection = document.getElementById("result-section");
-  var resultContent = document.getElementById("result-content");
-  var healthIndicator = document.getElementById("health-indicator");
-  async function checkHealth() {
+  async function checkEngine() {
     try {
-      const res = await fetch(`${DESKTOP_URL}/health`, { signal: AbortSignal.timeout(2e3) });
-      return res.ok;
+      const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2e3) });
+      if (r.ok) {
+        engineDot.classList.add("live");
+        engineDot.title = "Engine live";
+      } else {
+        engineDot.classList.add("dead");
+      }
     } catch {
-      return false;
+      engineDot.classList.add("dead");
+      engineDot.title = "Engine offline \u2014 is uvicorn running on :8000?";
     }
   }
-  async function init() {
-    const isHealthy = await checkHealth();
-    healthIndicator.textContent = isHealthy ? "Connected" : "Offline";
-    healthIndicator.className = isHealthy ? "health-ok" : "health-offline";
-    scanBtn.disabled = false;
+  async function loadHoldings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["holdings"], (result) => {
+        if (result["holdings"] && Array.isArray(result["holdings"])) {
+          holdings = result["holdings"];
+        } else {
+          holdings = [
+            { ticker: "AAPL", name: "Apple Inc.", shares: 10, avgBuyPrice: 145 },
+            { ticker: "NVDA", name: "NVIDIA Corp.", shares: 5, avgBuyPrice: 410 },
+            { ticker: "MSFT", name: "Microsoft Corp.", shares: 8, avgBuyPrice: 290 },
+            { ticker: "TSLA", name: "Tesla Inc.", shares: 3, avgBuyPrice: 220 }
+          ];
+          chrome.storage.local.set({ holdings });
+        }
+        resolve();
+      });
+    });
   }
-  init();
-  scanBtn.addEventListener("click", async () => {
+  async function handleScan() {
     scanBtn.disabled = true;
-    setStatus("Extracting article text...", "info");
-    resultSection.hidden = true;
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (!tab.id) {
-      setStatus("Could not access current tab.", "error");
-      scanBtn.disabled = false;
-      return;
-    }
-    let extractResponse = null;
+    resultsEl.style.display = "none";
+    setStatus("extracting article\u2026", true);
+    let article = null;
     try {
-      extractResponse = await browser.tabs.sendMessage(tab.id, { type: "EXTRACT_ARTICLE" });
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      article = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_ARTICLE" });
     } catch {
-      setStatus("Could not extract page text. Try reloading the page.", "error");
+      setStatus("Could not read page. Try refreshing.");
       scanBtn.disabled = false;
       return;
     }
-    if (!extractResponse?.text) {
-      setStatus("No article text found on this page.", "error");
+    if (!article?.title && !article?.body) {
+      setStatus("No readable content found on this page.");
       scanBtn.disabled = false;
       return;
     }
-    const payload = {
-      url: tab.url ?? "",
-      title: tab.title ?? "",
-      body: extractResponse.text,
-      holdings: HOLDINGS
-    };
-    setStatus("Sending to desktop app for analysis...", "info");
+    setStatus("running analysis\u2026", true);
+    let result = null;
     try {
-      const res = await fetch(`${DESKTOP_URL}/analyse`, {
+      const r = await fetch(`${API}/analyse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          url: "",
+          title: article.title,
+          body: article.body,
+          holdings
+        })
       });
-      if (!res.ok)
-        throw new Error(`Server responded with ${res.status}`);
-      const result = await res.json();
-      renderResult(result);
-      setStatus("Analysis complete.", "success");
-    } catch {
-      setStatus("Could not reach desktop app. Is it running on port 8080?", "error");
+      if (!r.ok)
+        throw new Error(`HTTP ${r.status}`);
+      result = await r.json();
+    } catch (e) {
+      setStatus(`API error: ${e.message}`);
       scanBtn.disabled = false;
+      return;
     }
-  });
-  function setStatus(msg, type) {
-    scanStatus.textContent = msg;
-    scanStatus.className = `status-${type}`;
+    if (result)
+      renderResults(result);
+    setStatus("");
+    scanBtn.disabled = false;
   }
-  var tabPortfolio = document.getElementById("tab-portfolio");
-  var tabNews = document.getElementById("tab-news");
-  var tabBtns = document.querySelectorAll(".tab-btn");
-  var newsLoaded = false;
-  tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const target = btn.dataset.tab;
-      tabBtns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      tabPortfolio.hidden = target !== "portfolio";
-      tabNews.hidden = target !== "news";
-      if (target === "news" && !newsLoaded) {
-        newsLoaded = true;
-        loadNews();
-      }
-    });
-  });
-  async function fetchAllNews() {
-    const tickers = HOLDINGS.map((h) => h.ticker).join(",");
-    const res = await fetch(`${DESKTOP_URL}/news?tickers=${tickers}`, {
-      signal: AbortSignal.timeout(8e3)
-    });
-    if (!res.ok)
-      throw new Error(`News fetch failed: ${res.status}`);
-    const data = await res.json();
-    return data.items;
-  }
-  function relativeTime(dateStr) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 6e4);
-    if (mins < 60)
-      return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24)
-      return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+  function renderResults(result) {
+    summaryEl.innerHTML = `${sentimentBadge(result.sentiment)}&nbsp; ${escHtml(result.summary)}`;
+    if (result.impactDetails.length > 0) {
+      chipsEl.innerHTML = result.impactDetails.map((d) => {
+        const icon = d.sentiment === "positive" ? "\u25B2" : d.sentiment === "negative" ? "\u25BC" : "\u2014";
+        const confPct = d.confidence !== void 0 ? Math.round(d.confidence * 100) : null;
+        const confBadge = confPct !== null ? `<span class="conf">${confPct}%</span>` : "";
+        return `<div class="chip ${d.sentiment}"><span class="chip-icon">${icon}</span>${escHtml(d.ticker)}${confBadge}</div>`;
+      }).join("");
+      chipsWrap.style.display = "block";
+    } else {
+      chipsWrap.style.display = "none";
+    }
+    resultsEl.style.display = "block";
   }
   async function loadNews() {
-    const newsList = document.getElementById("news-list");
-    const newsStatus = document.getElementById("news-status");
-    newsStatus.textContent = "Loading headlines...";
-    newsStatus.className = "status-muted";
-    newsList.innerHTML = "";
+    newsLoaded = true;
+    newsList.innerHTML = `<div class="news-list-inner"><div class="status"><span class="spinner"></span>fetching news\u2026</div></div>`;
+    const tickers = holdings.map((h) => h.ticker).join(",");
+    if (!tickers) {
+      newsList.innerHTML = `<div class="news-list-inner"><div class="empty">No holdings configured.</div></div>`;
+      return;
+    }
     try {
-      const allItems = await fetchAllNews();
-      if (allItems.length === 0) {
-        newsStatus.textContent = "No headlines found.";
+      const r = await fetch(`${API}/news?tickers=${encodeURIComponent(tickers)}`, {
+        signal: AbortSignal.timeout(15e3)
+      });
+      if (!r.ok)
+        throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const articles = data.articles || [];
+      if (articles.length === 0) {
+        newsList.innerHTML = `<div class="news-list-inner"><div class="empty">No recent news found.</div></div>`;
         return;
       }
-      newsStatus.textContent = "";
-      const cardEls = [];
-      allItems.forEach((item) => {
-        const li = document.createElement("li");
-        li.className = "news-item";
-        li.innerHTML = `
-        <div class="news-meta">
-          <span class="news-ticker">${item.ticker}</span>
-          <span class="news-time">${relativeTime(item.pubDate)}</span>
-        </div>
-        <a class="news-title" href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-        <div class="news-item-analysis loading">Analysing...</div>
-      `;
-        newsList.appendChild(li);
-        cardEls.push(li);
-      });
-      newsStatus.textContent = "";
-      const analyses = await Promise.allSettled(
-        allItems.map(
-          (item) => fetch(`${DESKTOP_URL}/analyse`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: item.link, title: item.title, body: item.title, holdings: HOLDINGS })
-          }).then((r) => r.json())
-        )
-      );
-      analyses.forEach((result, i) => {
-        const analysisEl = cardEls[i].querySelector(".news-item-analysis");
-        analysisEl.classList.remove("loading");
-        if (result.status === "rejected") {
-          analysisEl.classList.add("analysis-error");
-          analysisEl.textContent = "Analysis unavailable";
-          return;
-        }
-        const r = result.value;
-        const sc = `impact-${r.sentiment}`;
-        const affected = r.affectedTickers.length > 0 ? r.affectedTickers.map((t) => `<span class="news-affected-ticker">${t}</span>`).join("") : `<span class="muted">No holdings affected</span>`;
-        analysisEl.innerHTML = `
-        <span class="news-sentiment-pill ${sc}">${r.sentiment}</span>
-        <span class="news-affected">${affected}</span>
-      `;
+      const cards = articles.map(
+        (a) => `
+        <div class="news-card">
+          <div class="news-card-top">
+            <span class="news-ticker-badge">${escHtml(a.ticker)}</span>
+            <span class="news-time">${timeAgo(a.publishedAt)}</span>
+          </div>
+          <div class="news-title">${escHtml(a.title)}</div>
+          <div class="news-card-bottom">
+            <span class="news-source">${escHtml(a.source)}</span>
+            <button class="news-open-btn" data-url="${escAttr(a.url)}">\u2197 open</button>
+          </div>
+        </div>`
+      ).join("");
+      newsList.innerHTML = `<div class="news-list-inner">${cards}</div>`;
+      newsList.querySelectorAll(".news-open-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const url = btn.dataset.url;
+          if (url)
+            chrome.tabs.create({ url });
+        });
       });
     } catch {
-      newsStatus.textContent = "Could not reach desktop app.";
-      newsStatus.className = "status-error";
+      newsList.innerHTML = `<div class="news-list-inner"><div class="status">Failed to load news. Is the engine running?</div></div>`;
     }
   }
-  function renderResult(result) {
-    resultSection.hidden = false;
-    const sentimentClass = `sentiment-${result.sentiment}`;
-    const sentimentLabel = result.sentiment.charAt(0).toUpperCase() + result.sentiment.slice(1);
-    const impactRows = result.impactDetails.length > 0 ? result.impactDetails.map(
-      (d) => `
-          <li class="impact-item">
-            <span class="ticker">${d.ticker}</span>
-            <span class="impact-sentiment impact-${d.sentiment}">${d.sentiment}</span>
-            <p class="impact-reasoning">${d.reasoning}</p>
-          </li>`
-    ).join("") : "<li class='muted'>No specific holdings mentioned.</li>";
-    resultContent.innerHTML = `
-    <div class="result-header">
-      <span class="overall-sentiment ${sentimentClass}">${sentimentLabel}</span>
-    </div>
-    <p class="result-summary">${result.summary}</p>
-    <h3>Impact on Your Holdings</h3>
-    <ul class="impact-list">${impactRows}</ul>
-  `;
+  function setStatus(msg, spinning = false) {
+    if (!msg) {
+      statusEl.innerHTML = "";
+      return;
+    }
+    statusEl.innerHTML = spinning ? `<span class="spinner"></span>${escHtml(msg)}` : escHtml(msg);
+  }
+  function sentimentBadge(sentiment) {
+    const map = {
+      positive: `<span class="badge positive">\u25B2 POSITIVE</span>`,
+      negative: `<span class="badge negative">\u25BC NEGATIVE</span>`,
+      neutral: `<span class="badge neutral">\u2014 NEUTRAL</span>`
+    };
+    return map[sentiment] ?? map["neutral"];
+  }
+  function escHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function escAttr(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  }
+  function timeAgo(dateStr) {
+    if (!dateStr)
+      return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime()))
+      return "";
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 6e4);
+    if (mins < 1)
+      return "just now";
+    if (mins < 60)
+      return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24)
+      return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   }
 })();
-//# sourceMappingURL=popup.js.map

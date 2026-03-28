@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+streamlit
+requests
+pydantic
+plotly
+
+# ML / NLP
+transformers
+torch
+sentence-transformers
+numpy
+scikit-learn

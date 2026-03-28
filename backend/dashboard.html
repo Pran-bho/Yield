@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yield · Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --bg2: #111110; --border: #1e1e1e; --border2: #2a2a28;
+      --fg: #e8e4dc; --fg2: #7a7a70; --fg3: #4a4a42;
+      --accent: #c8f060; --pos: #c8f060; --neg: #f06060;
+      --pos-bg: #1a2e0a; --neg-bg: #2e0a0a; --pos-bdr: #3a5a12; --neg-bdr: #5a1212;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: 'DM Mono', monospace; font-size: 13px; }
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar { width: 210px; flex-shrink: 0; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 14px; overflow-y: auto; }
+    .wordmark { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+    .wordmark span { color: var(--accent); }
+    .tagline { font-size: 8px; color: var(--fg3); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 20px; margin-top: 2px; }
+    .nav { display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
+    .nav-btn { background: none; border: none; border-left: 2px solid transparent; color: var(--fg3); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 7px 10px; text-align: left; cursor: pointer; border-radius: 0 2px 2px 0; transition: color .15s, background .15s, border-color .15s; }
+    .nav-btn:hover { color: var(--fg2); background: var(--bg2); }
+    .nav-btn.active { color: var(--accent); background: var(--bg2); border-left-color: var(--accent); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .sec-label { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg3); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+    .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .stat-l { font-size: 9px; color: var(--fg3); }
+    .stat-v { font-size: 11px; color: var(--fg); }
+    .stat-a { font-size: 11px; color: var(--accent); }
+    .engine { margin-top: auto; padding-top: 14px; font-size: 9px; color: var(--fg3); letter-spacing: 0.1em; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg3); flex-shrink: 0; }
+    .dot.live { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .dot.dead { background: var(--neg); }
+    #sidebar-stats { margin-bottom: 6px; }
+    .sb-ticker { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .sb-dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; flex-shrink: 0; }
+
+    /* ── Main ── */
+    .main { flex: 1; overflow-y: auto; padding: 32px 40px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .ph { margin-bottom: 24px; }
+    .ph-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.02em; line-height: 1; }
+    .ph-title span { color: var(--accent); }
+    .ph-sub { font-size: 9px; color: var(--fg3); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 3px; }
+
+    /* ── Cards ── */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 3px; padding: 18px 20px; margin-bottom: 12px; }
+    .card:hover { border-color: var(--border2); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ── Pills ── */
+    .pill { display: inline-block; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; padding: 2px 8px; border-radius: 2px; border: 1px solid; }
+    .pill-pos { background: var(--pos-bg); color: var(--pos); border-color: var(--pos-bdr); }
+    .pill-neg { background: var(--neg-bg); color: var(--neg); border-color: var(--neg-bdr); }
+    .pill-neu { background: #1a1a18; color: var(--fg3); border-color: var(--border2); }
+    .ap { display: inline-block; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; padding: 3px 10px; border-radius: 2px; border: 1px solid; }
+    .ap-inc { background: var(--pos-bg); color: var(--pos); border-color: var(--pos); }
+    .ap-red { background: var(--neg-bg); color: var(--neg); border-color: var(--neg); }
+    .ap-mnt { background: #1a1a18; color: var(--fg); border-color: var(--border2); }
+
+    /* ── Summary box ── */
+    .sumbox { background: #0e0e0c; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 3px 3px 0; padding: 12px 16px; margin-bottom: 20px; line-height: 1.65; }
+    .sumbox-src { font-size: 9px; color: var(--fg3); margin-bottom: 3px; }
+    .sumbox-txt { font-size: 11px; color: #b8b4ac; }
+
+    /* ── Bar ── */
+    .bar-wrap { height: 4px; background: var(--border); border-radius: 2px; margin: 3px 0 8px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 2px; }
+
+    /* ── Evidence ── */
+    .evidence { font-size: 10px; color: #5a5a52; font-style: italic; border-left: 2px solid var(--border2); padding-left: 10px; margin-top: 7px; line-height: 1.5; }
+
+    /* ── Stats strip ── */
+    .stats-strip { display: flex; gap: 20px; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 3px; margin-bottom: 18px; }
+    .ss-item .ss-l { font-size: 8px; color: var(--fg3); letter-spacing: 0.08em; margin-bottom: 1px; }
+    .ss-item .ss-v { font-size: 13px; color: var(--fg); }
+    .ss-item .ss-v.a { color: var(--accent); }
+    .ss-item .ss-v.p { color: var(--pos); }
+    .ss-item .ss-v.n { color: var(--neg); }
+
+    /* ── No data ── */
+    .no-data { text-align: center; padding: 60px 20px; color: var(--fg3); font-size: 11px; letter-spacing: 0.08em; }
+    .no-data-icon { font-size: 22px; margin-bottom: 10px; color: var(--border2); }
+
+    /* ── Portfolio ── */
+    .chart-wrap { position: relative; max-width: 260px; margin: 0 auto 12px; }
+    .chart-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
+    .chart-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+    .chart-lbl { font-size: 8px; color: var(--fg3); letter-spacing: 0.1em; text-transform: uppercase; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+    .legend-item { display: flex; align-items: center; font-size: 9px; color: var(--fg2); gap: 4px; }
+    .cdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .pos-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .pos-row:last-of-type { border-bottom: none; }
+    .pos-ticker { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+    .pos-meta { font-size: 9px; color: var(--fg3); margin-top: 1px; }
+
+    /* ── Add form ── */
+    .add-form { display: grid; grid-template-columns: 1.8fr 2fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 14px; }
+    .fg label { display: block; font-size: 8px; color: var(--fg3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+    .fg input, .fg select { width: 100%; }
+    input, select { background: var(--bg2); border: 1px solid var(--border2); color: var(--fg); font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 9px; border-radius: 2px; outline: none; transition: border-color .2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--fg3); }
+    .btn-primary { background: var(--accent); color: #0a0a0a; border: none; border-radius: 2px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 14px; cursor: pointer; transition: background .15s; white-space: nowrap; }
+    .btn-primary:hover { background: #d4f570; }
+    .btn-ghost { background: none; border: 1px solid var(--border2); color: var(--fg2); border-radius: 2px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 12px; cursor: pointer; transition: border-color .15s, color .15s; }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-rm { background: none; border: none; color: var(--fg3); font-size: 16px; cursor: pointer; padding: 0 3px; transition: color .15s; line-height: 1; }
+    .btn-rm:hover { color: var(--neg); }
+
+    /* ── Snapshot table ── */
+    .snap-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .snap-table th { text-align: left; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg3); padding: 6px 10px; border-bottom: 1px solid var(--border); font-weight: 400; }
+    .snap-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .snap-table tr:last-child td { border-bottom: none; }
+    .snap-table tr:hover td { background: var(--bg2); }
+
+    /* ── News ── */
+    .news-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 3px; padding: 11px 15px; margin-bottom: 7px; }
+    .news-card:hover { border-color: var(--border2); }
+    .news-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .news-tk { font-size: 8px; letter-spacing: 0.1em; padding: 1px 6px; border-radius: 2px; border: 1px solid var(--border2); background: var(--bg); }
+    .news-time { font-size: 8px; color: var(--fg3); }
+    .news-title { font-size: 11px; line-height: 1.45; margin-bottom: 5px; }
+    .news-bot { display: flex; justify-content: space-between; align-items: center; }
+    .news-src { font-size: 8px; color: var(--fg3); }
+    .news-open { font-size: 8px; color: var(--fg3); border: 1px solid var(--border2); padding: 2px 7px; border-radius: 2px; text-decoration: none; transition: color .15s, border-color .15s; }
+    .news-open:hover { color: var(--accent); border-color: var(--accent); }
+    .news-grp { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg3); padding: 10px 0 5px; border-bottom: 1px solid var(--border); margin-bottom: 7px; margin-top: 4px; }
+
+    .auto-badge { font-size: 8px; color: var(--fg3); letter-spacing: 0.1em; }
+    .spinner { display: inline-block; width: 10px; height: 10px; border: 1.5px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 6px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="wordmark">◈ YIELD<span>.</span></div>
+    <div class="tagline">portfolio intelligence</div>
+
+    <div class="nav">
+      <button class="nav-btn active" data-page="analysis">📡&nbsp; Analysis</button>
+      <button class="nav-btn"        data-page="portfolio">📊&nbsp; Portfolio</button>
+      <button class="nav-btn"        data-page="news">📰&nbsp; News</button>
+    </div>
+
+    <hr class="divider" />
+    <div class="sec-label">Holdings</div>
+    <div id="sidebar-stats"></div>
+
+    <div class="engine">
+      <div class="dot" id="eng-dot"></div>
+      <span id="eng-lbl">checking…</span>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Analysis -->
+    <div class="page active" id="page-analysis">
+      <div class="ph">
+        <div class="ph-title">◈ YIELD<span>.</span></div>
+        <div class="ph-sub">news intelligence · portfolio impact</div>
+      </div>
+      <div id="analysis-body"></div>
+    </div>
+
+    <!-- Portfolio -->
+    <div class="page" id="page-portfolio">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="ph-title">◈ PORTFOLIO<span>.</span></div>
+          <div class="ph-sub">allocation · position guidance</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:22px">
+        <div class="card">
+          <div class="sec-label">Allocation</div>
+          <div class="chart-wrap">
+            <canvas id="port-chart"></canvas>
+            <div class="chart-center">
+              <div class="chart-val" id="chart-total">$0</div>
+              <div class="chart-lbl">book value</div>
+            </div>
+          </div>
+          <div class="legend" id="chart-legend"></div>
+        </div>
+
+        <div class="card">
+          <div class="sec-label">Positions</div>
+          <div id="pos-list"></div>
+          <hr class="divider" style="margin-top:10px" />
+          <div class="sec-label">Add Position</div>
+          <div class="add-form">
+            <div class="fg"><label>Instrument</label><select id="add-sel"></select></div>
+            <div class="fg"><label>Name</label><input type="text" id="add-name" placeholder="Company" /></div>
+            <div class="fg"><label>Shares</label><input type="number" id="add-shares" min="0" step="0.1" placeholder="0" /></div>
+            <div class="fg"><label>Avg Buy ($)</label><input type="number" id="add-price" min="0" step="0.01" placeholder="0.00" /></div>
+            <div class="fg"><label>&nbsp;</label><button class="btn-primary" id="add-btn">Add →</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div class="sec-label" style="margin-bottom:0;border-bottom:none">AI Suggestions</div>
+        <span class="auto-badge">● LIVE · 15 s</span>
+      </div>
+      <div id="port-suggestions"></div>
+    </div>
+
+    <!-- News -->
+    <div class="page" id="page-news">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="ph-title">◈ NEWS<span>.</span></div>
+          <div class="ph-sub">recent · non-paywalled · your holdings</div>
+        </div>
+        <button class="btn-ghost" id="news-refresh" style="margin-top:4px">↻ Refresh</button>
+      </div>
+      <div id="news-body"><div class="no-data"><span class="spinner"></span></div></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+const COLORS = ['#c8f060','#60b4f0','#f08060','#c060f0','#f0d060','#60f0c0','#f060a0','#a0c060','#60a0f0','#f060d0','#80f090','#f0a040'];
+const PRESETS = [
+  {ticker:'AAPL',name:'Apple Inc.'},{ticker:'NVDA',name:'NVIDIA Corp.'},{ticker:'MSFT',name:'Microsoft Corp.'},
+  {ticker:'TSLA',name:'Tesla Inc.'},{ticker:'GOOGL',name:'Alphabet Inc.'},{ticker:'AMZN',name:'Amazon.com Inc.'},
+  {ticker:'META',name:'Meta Platforms'},{ticker:'AMD',name:'Advanced Micro Devices'},{ticker:'TSM',name:'Taiwan Semiconductor'},
+  {ticker:'AVGO',name:'Broadcom Inc.'},{ticker:'ASML',name:'ASML Holding NV'},{ticker:'NFLX',name:'Netflix Inc.'},
+];
+const DEFAULT_HOLDINGS = [
+  {ticker:'AAPL',name:'Apple Inc.',shares:10,avgBuyPrice:145},
+  {ticker:'NVDA',name:'NVIDIA Corp.',shares:5,avgBuyPrice:410},
+  {ticker:'MSFT',name:'Microsoft Corp.',shares:8,avgBuyPrice:290},
+  {ticker:'TSLA',name:'Tesla Inc.',shares:3,avgBuyPrice:220},
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let holdings = JSON.parse(localStorage.getItem('yield_holdings') || 'null') || structuredClone(DEFAULT_HOLDINGS);
+let chart = null;
+let latestData = null;
+let currentPage = 'analysis';
+
+function save() { localStorage.setItem('yield_holdings', JSON.stringify(holdings)); }
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const totalVal = () => holdings.reduce((s,h) => s + h.shares * h.avgBuyPrice, 0);
+const fmt$ = n => '$' + n.toLocaleString('en-US', {maximumFractionDigits:0});
+const fmtPct = n => n.toFixed(1) + '%';
+const color = tk => { const i = PRESETS.findIndex(p => p.ticker === tk); return COLORS[i >= 0 ? i : 0]; };
+
+function pillSentiment(s) {
+  if (s === 'positive') return '<span class="pill pill-pos">▲ positive</span>';
+  if (s === 'negative') return '<span class="pill pill-neg">▼ negative</span>';
+  return '<span class="pill pill-neu">— neutral</span>';
+}
+function pillAction(a) {
+  if (a === 'increase') return '<span class="ap ap-inc">↑ increase</span>';
+  if (a === 'reduce')   return '<span class="ap ap-red">↓ reduce</span>';
+  return '<span class="ap ap-mnt">· maintain</span>';
+}
+
+function kelly(sentiment, conf) {
+  const b = 1.5;
+  if (sentiment === 'positive') { const p = 0.5 + conf * 0.35, q = 1 - p; return Math.max(-1, Math.min(1, (b*p-q)/b)); }
+  if (sentiment === 'negative') { const p = 0.5 - conf * 0.35, q = 1 - p; return Math.max(-1, Math.min(1, (b*p-q)/b)); }
+  return 0;
+}
+function kellyInterp(f, curPct) {
+  const hk = f * 0.5;
+  if (hk > 0.05)  return { action:'increase', halfKelly:hk, sugPct: Math.min(curPct + hk*100*0.4, 30),  deltaPct: Math.min(curPct + hk*100*0.4, 30)  - curPct };
+  if (hk < -0.05) return { action:'reduce',   halfKelly:hk, sugPct: Math.max(curPct + hk*100*0.4, 0),   deltaPct: Math.max(curPct + hk*100*0.4, 0)   - curPct };
+  return { action:'maintain', halfKelly:hk, sugPct: curPct, deltaPct: 0 };
+}
+
+function timeAgo(s) {
+  if (!s) return '';
+  const d = new Date(s); if (isNaN(d)) return '';
+  const m = Math.floor((Date.now()-d)/60000);
+  if (m < 1) return 'just now'; if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m/60); if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function fetchLatest() {
+  try { const r = await fetch(`${API}/latest`,{signal:AbortSignal.timeout(5000)}); return r.ok ? (await r.json()) : null; }
+  catch { return null; }
+}
+async function fetchNews(tickers) {
+  const r = await fetch(`${API}/news?tickers=${encodeURIComponent(tickers.join(','))}`,{signal:AbortSignal.timeout(20000)});
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return (await r.json()).articles || [];
+}
+
+// ── Engine ───────────────────────────────────────────────────────────────────
+async function checkEngine() {
+  const dot = document.getElementById('eng-dot'), lbl = document.getElementById('eng-lbl');
+  try {
+    const r = await fetch(`${API}/health`,{signal:AbortSignal.timeout(2000)});
+    dot.className = r.ok ? 'dot live' : 'dot dead';
+    lbl.textContent = r.ok ? 'ENGINE LIVE' : 'ENGINE ERROR';
+  } catch { dot.className = 'dot dead'; lbl.textContent = 'ENGINE OFFLINE'; }
+}
+
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const tv = totalVal();
+  document.getElementById('sidebar-stats').innerHTML = holdings.length
+    ? `<div style="margin-bottom:8px"><div class="stat-row"><span class="stat-l">book value</span><span class="stat-a">${fmt$(tv)}</span></div><div class="stat-row"><span class="stat-l">positions</span><span class="stat-v">${holdings.length}</span></div></div><hr class="divider" style="margin:8px 0"/>` +
+      holdings.map(h => {
+        const pct = tv > 0 ? h.shares*h.avgBuyPrice/tv*100 : 0;
+        return `<div class="sb-ticker"><div style="display:flex;align-items:center"><div class="sb-dot" style="background:${color(h.ticker)}"></div><span style="font-size:10px">${esc(h.ticker)}</span></div><span style="font-size:9px;color:var(--fg3)">${fmtPct(pct)}</span></div>`;
+      }).join('')
+    : '<div style="font-size:9px;color:var(--fg3)">No positions</div>';
+}
+
+// ── Suggestion card ──────────────────────────────────────────────────────────
+function suggCard(d) {
+  const tk = (d.ticker||'').toUpperCase(), sent = d.sentiment||'neutral', conf = d.confidence??0.5;
+  const reasoning = d.reasoning||'';
+  let sig = reasoning, ev = '';
+  if (reasoning.includes('Strongest evidence:')) {
+    const [a,b] = reasoning.split('Strongest evidence:');
+    sig = a.replace('Detected ','').replace(' in the article.','').trim();
+    ev  = (b||'').trim().replace(/^"|"$/g,'');
+  }
+  const tv = totalVal(), h = holdings.find(x=>x.ticker.toUpperCase()===tk);
+  let curPct = 0, f = 0, kd = {action:'maintain',halfKelly:0,sugPct:0,deltaPct:0};
+  if (h && tv > 0) { curPct = h.shares*h.avgBuyPrice/tv*100; f = kelly(sent,conf); kd = kellyInterp(f,curPct); kd.sugPct = kd.sugPct||curPct; }
+  const cp = Math.round(conf*100);
+  const cc = cp >= 65 ? '#c8f060' : cp >= 40 ? '#f0b060' : '#4a4a42';
+  const ds = kd.deltaPct > 0.05 ? `<span style="color:#c8f060">+${kd.deltaPct.toFixed(1)}%</span>` : kd.deltaPct < -0.05 ? `<span style="color:#f06060">${kd.deltaPct.toFixed(1)}%</span>` : '<span style="color:#4a4a42">—</span>';
+  const bp = Math.min(Math.abs(kd.halfKelly)*200,100);
+  const bg = f>=0 ? 'linear-gradient(90deg,#3a5a12,#c8f060)' : 'linear-gradient(90deg,#5a1212,#f06060)';
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:${color(tk)}">${esc(tk)}</span>
+      ${pillSentiment(sent)}
+    </div>
+    <div class="stat-row"><span class="stat-l">confidence</span><span style="color:${cc};font-size:11px;font-weight:500">${cp}%</span></div>
+    <div class="bar-wrap"><div class="bar-fill" style="width:${cp}%;background:${cc}"></div></div>
+    <div class="stat-row"><span class="stat-l">signal</span><span style="font-size:9px;color:#6a6a62">${esc(sig.slice(0,55))}${sig.length>55?'…':''}</span></div>
+    ${ev ? `<div class="evidence">"${esc(ev.slice(0,220))}${ev.length>220?'…':''}"</div>` : ''}
+    <hr class="divider" style="margin:8px 0">
+    <div class="stat-row"><span class="stat-l">current allocation</span><span style="font-size:11px">${fmtPct(curPct)}</span></div>
+    <div class="stat-row"><span class="stat-l">suggested allocation</span><span style="font-size:11px">${fmtPct(kd.sugPct)} &nbsp;${ds}</span></div>
+    <div class="stat-row"><span class="stat-l">half-kelly fraction</span><span style="font-size:11px">${kd.halfKelly>=0?'+':''}${kd.halfKelly.toFixed(3)}</span></div>
+    <div class="bar-wrap"><div class="bar-fill" style="width:${bp.toFixed(0)}%;background:${bg}"></div></div>
+    <div style="margin-top:9px">${pillAction(kd.action)}</div>
+  </div>`;
+}
+
+// ── Analysis page ────────────────────────────────────────────────────────────
+function renderAnalysis(data) {
+  const el = document.getElementById('analysis-body');
+  if (!data || !data.result) {
+    el.innerHTML = `<div class="no-data"><div class="no-data-icon">◈</div>Scan a page with the browser extension to see live analysis.</div>`;
+    return;
+  }
+  const {result, request={}} = data, tv = totalVal();
+  const sent = result.sentiment||'neutral', details = result.impactDetails||[];
+  const impMap = Object.fromEntries(details.map(d=>[d.ticker.toUpperCase(),d]));
+  let html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="sec-label" style="margin-bottom:0;border-bottom:none">Live Analysis</div>
+      <span class="auto-badge">● AUTO · 8 s</span>
+    </div>
+    <div class="sumbox">
+      <div class="sumbox-src">${pillSentiment(sent)}&nbsp;&nbsp;<span style="color:var(--fg3)">source · </span><span style="color:#6a6a62;font-style:italic">${esc((request.title||'').slice(0,100))}${(request.title||'').length>100?'…':''}</span></div>
+      <div class="sumbox-txt">${esc(result.summary||'')}</div>
+    </div>`;
+  if (!details.length) {
+    html += `<div class="no-data" style="padding:30px">No significant impact detected for your current holdings.</div>`;
+  } else {
+    const ac = details.reduce((s,d)=>s+(d.confidence||0),0)/details.length;
+    const pc = details.filter(d=>d.sentiment==='positive').length;
+    const nc = details.filter(d=>d.sentiment==='negative').length;
+    html += `<div class="stats-strip">
+      <div class="ss-item"><div class="ss-l">signals fired</div><div class="ss-v">${details.length}</div></div>
+      <div class="ss-item"><div class="ss-l">avg confidence</div><div class="ss-v a">${Math.round(ac*100)}%</div></div>
+      <div class="ss-item"><div class="ss-l">bullish</div><div class="ss-v p">${pc}</div></div>
+      <div class="ss-item"><div class="ss-l">bearish</div><div class="ss-v n">${nc}</div></div>
+    </div>
+    <div class="sec-label">Holding Impact & Position Guidance</div>
+    <div class="grid2">${details.map(d=>suggCard(d)).join('')}</div>
+    <div class="sec-label" style="margin-top:22px">Portfolio Snapshot</div>
+    <table class="snap-table"><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Position</th><th>Alloc</th><th>Signal</th></tr></thead><tbody>` +
+    holdings.map(h => {
+      const tk=h.ticker.toUpperCase(), pv=h.shares*h.avgBuyPrice, pct=tv>0?pv/tv*100:0;
+      const imp=impMap[tk], s=imp?.sentiment||'', fl=s==='positive'?'▲':s==='negative'?'▼':'—';
+      const sc=s==='positive'?'#c8f060':s==='negative'?'#f06060':'var(--fg3)';
+      return `<tr><td><span style="font-family:'Syne',sans-serif;font-weight:700;color:${color(tk)}">${esc(tk)}</span></td><td style="color:var(--fg2)">${esc(h.name)}</td><td>${h.shares}</td><td>$${h.avgBuyPrice.toFixed(2)}</td><td>${fmt$(pv)}</td><td>${fmtPct(pct)}</td><td style="color:${sc}">${fl} ${s.toUpperCase()||'—'}</td></tr>`;
+    }).join('') +
+    `</tbody></table><div style="font-size:8px;color:#2a2a28;margin-top:6px;letter-spacing:0.06em">Half-Kelly Criterion · b=1.5 · For informational purposes only.</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── Portfolio page ───────────────────────────────────────────────────────────
+function renderChart() {
+  const tv = totalVal();
+  document.getElementById('chart-total').textContent = fmt$(tv);
+  const labels = holdings.map(h=>h.ticker), vals = holdings.map(h=>h.shares*h.avgBuyPrice), cols = holdings.map(h=>color(h.ticker));
+  if (chart) { chart.data.labels=labels; chart.data.datasets[0].data=vals; chart.data.datasets[0].backgroundColor=cols; chart.update(); }
+  else {
+    chart = new Chart(document.getElementById('port-chart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels, datasets:[{ data:vals, backgroundColor:cols, borderColor:'#0a0a0a', borderWidth:2 }] },
+      options: {
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: c => ` ${fmt$(c.raw)}  (${tv>0?(c.raw/tv*100).toFixed(1):0}%)` },
+            backgroundColor:'#111110', borderColor:'#2a2a28', borderWidth:1,
+            titleColor:'#e8e4dc', bodyColor:'#7a7a70',
+            titleFont:{family:"'Syne',sans-serif",weight:'700'}, bodyFont:{family:"'DM Mono',monospace",size:11},
+          }
+        },
+        animation: { duration: 400 },
+      }
+    });
+  }
+  document.getElementById('chart-legend').innerHTML = holdings.map(h=>`<div class="legend-item"><div class="cdot" style="background:${color(h.ticker)}"></div>${esc(h.ticker)}</div>`).join('');
+}
+
+function renderPositions() {
+  const tv = totalVal(), el = document.getElementById('pos-list');
+  el.innerHTML = !holdings.length
+    ? '<div style="color:var(--fg3);font-size:10px;padding:12px 0">No positions. Add one below.</div>'
+    : holdings.map((h,i) => {
+        const pv=h.shares*h.avgBuyPrice, pct=tv>0?pv/tv*100:0, c=color(h.ticker);
+        return `<div class="pos-row"><div><div class="pos-ticker" style="color:${c}">${esc(h.ticker)}</div><div class="pos-meta">${h.shares} sh @ $${h.avgBuyPrice.toFixed(2)}</div></div><div style="text-align:right"><div style="font-size:11px;color:var(--accent)">${fmtPct(pct)}</div><div style="font-size:9px;color:var(--fg3)">${fmt$(pv)}</div></div><button class="btn-rm" data-i="${i}">×</button></div>`;
+      }).join('');
+  el.querySelectorAll('.btn-rm').forEach(b => b.addEventListener('click', () => {
+    holdings.splice(+b.dataset.i, 1); save(); renderPortfolio(); renderSidebar();
+  }));
+}
+
+function renderAddSel() {
+  const have = new Set(holdings.map(h=>h.ticker));
+  const sel = document.getElementById('add-sel');
+  sel.innerHTML = PRESETS.filter(p=>!have.has(p.ticker)).map(p=>`<option value="${p.ticker}" data-name="${esc(p.name)}">${p.ticker} · ${esc(p.name)}</option>`).join('');
+  sel.onchange = () => { const o=sel.options[sel.selectedIndex]; document.getElementById('add-name').value=o?.dataset.name||''; };
+  if (sel.options[0]) document.getElementById('add-name').value = sel.options[0].dataset.name||'';
+}
+
+function renderPortSuggestions(data) {
+  const el = document.getElementById('port-suggestions');
+  if (!data||!data.result) { el.innerHTML=`<div class="no-data" style="padding:40px"><div class="no-data-icon">◈</div>Scan an article with the browser extension to generate suggestions.</div>`; return; }
+  const {result,request={}} = data, details=result.impactDetails||[];
+  const sent=result.sentiment||'neutral';
+  let html = `<div class="sumbox" style="margin-bottom:18px"><div class="sumbox-src">${pillSentiment(sent)}&nbsp;&nbsp;<span style="color:var(--fg3)">source · </span><span style="color:#6a6a62;font-style:italic">${esc((request.title||'').slice(0,90))}</span></div><div class="sumbox-txt">${esc(result.summary||'')}</div></div>`;
+  if (details.length) {
+    const ac=details.reduce((s,d)=>s+(d.confidence||0),0)/details.length, pc=details.filter(d=>d.sentiment==='positive').length, nc=details.filter(d=>d.sentiment==='negative').length;
+    html += `<div class="stats-strip"><div class="ss-item"><div class="ss-l">signals fired</div><div class="ss-v">${details.length}</div></div><div class="ss-item"><div class="ss-l">avg confidence</div><div class="ss-v a">${Math.round(ac*100)}%</div></div><div class="ss-item"><div class="ss-l">bullish</div><div class="ss-v p">${pc}</div></div><div class="ss-item"><div class="ss-l">bearish</div><div class="ss-v n">${nc}</div></div></div><div class="grid2">${details.map(d=>suggCard(d)).join('')}</div><div style="font-size:8px;color:#2a2a28;margin-top:6px;letter-spacing:0.06em">Half-Kelly Criterion · b=1.5 · For informational purposes only.</div>`;
+  } else { html += `<div class="no-data" style="padding:30px">No holdings impacted by this article.</div>`; }
+  el.innerHTML = html;
+}
+
+function renderPortfolio() { renderPositions(); renderAddSel(); renderChart(); renderPortSuggestions(latestData); }
+
+// ── News page ────────────────────────────────────────────────────────────────
+async function renderNews() {
+  const el = document.getElementById('news-body');
+  el.innerHTML = '<div class="no-data"><span class="spinner"></span>Fetching news…</div>';
+  if (!holdings.length) { el.innerHTML='<div class="no-data">Add holdings to see news.</div>'; return; }
+  try {
+    const arts = await fetchNews(holdings.map(h=>h.ticker));
+    if (!arts.length) { el.innerHTML='<div class="no-data" style="padding:40px">No recent non-paywalled articles found.</div>'; return; }
+    const now=new Date(), td=now.toDateString(), yd=new Date(now-86400000).toDateString(), wk=new Date(now-7*86400000);
+    const groups={Today:[],Yesterday:[],['This Week']:[],Older:[]};
+    arts.forEach(a => {
+      const d=a.publishedAt?new Date(a.publishedAt):null, ds=d?.toDateString();
+      if(ds===td) groups.Today.push([a,d]); else if(ds===yd) groups.Yesterday.push([a,d]); else if(d&&d>=wk) groups['This Week'].push([a,d]); else groups.Older.push([a,d]);
+    });
+    let html='';
+    for(const [g,items] of Object.entries(groups)) {
+      if(!items.length) continue;
+      html+=`<div class="news-grp">${g} · ${items.length} article${items.length!==1?'s':''}</div>`;
+      items.forEach(([a,d])=>{
+        const c=color(a.ticker||'');
+        html+=`<div class="news-card"><div class="news-top"><span class="news-tk" style="color:${c}">${esc(a.ticker||'')}</span><span class="news-time">${timeAgo(a.publishedAt)}</span></div><div class="news-title">${esc(a.title||'')}</div><div class="news-bot"><span class="news-src">${esc(a.source||'')}</span><a class="news-open" href="${esc(a.url||'#')}" target="_blank">↗ open</a></div></div>`;
+      });
+    }
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML=`<div class="no-data" style="color:var(--neg)">Failed to load news — is the engine running?</div>`; }
+}
+
+// ── Nav ──────────────────────────────────────────────────────────────────────
+function showPage(name) {
+  currentPage = name;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));
+  if(name==='portfolio') renderPortfolio();
+  if(name==='news')      renderNews();
+}
+
+// ── Add position ─────────────────────────────────────────────────────────────
+document.getElementById('add-btn').addEventListener('click', () => {
+  const tk=document.getElementById('add-sel').value.toUpperCase();
+  const nm=document.getElementById('add-name').value.trim();
+  const sh=parseFloat(document.getElementById('add-shares').value);
+  const pr=parseFloat(document.getElementById('add-price').value);
+  if(!tk||!sh||!pr||isNaN(sh)||isNaN(pr)) return;
+  if(holdings.find(h=>h.ticker===tk)) return;
+  holdings.push({ticker:tk,name:nm||tk,shares:sh,avgBuyPrice:pr});
+  save();
+  document.getElementById('add-shares').value='';
+  document.getElementById('add-price').value='';
+  renderPortfolio(); renderSidebar();
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+document.getElementById('news-refresh').addEventListener('click', renderNews);
+
+async function refreshAnalysis() {
+  const data = await fetchLatest();
+  if (data?.result) latestData = data;
+  if (currentPage === 'analysis')   renderAnalysis(latestData);
+  if (currentPage === 'portfolio')  renderPortSuggestions(latestData);
+}
+
+renderSidebar();
+checkEngine();
+refreshAnalysis();
+setInterval(refreshAnalysis, 8000);
+setInterval(checkEngine, 30000);
+</script>
+</body>
+</html>

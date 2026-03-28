@@ -1,32 +1,33 @@
-export interface Stock {
+export interface Holding {
   ticker: string;
   name: string;
   shares: number;
   avgBuyPrice: number;
 }
 
-export interface ArticleScanPayload {
-  url: string;
+export interface ImpactDetail {
+  ticker: string;
+  sentiment: "positive" | "negative" | "neutral";
+  reasoning: string;
+  confidence: number;
+}
+
+export interface AnalyseResponse {
+  summary: string;
+  sentiment: "positive" | "negative" | "neutral";
+  affectedTickers: string[];
+  impactDetails: ImpactDetail[];
+}
+
+export interface ArticleData {
   title: string;
   body: string;
-  holdings: Stock[];
 }
 
-export interface AnalysisResult {
-  summary: string;
-  affectedTickers: string[];
-  sentiment: "positive" | "negative" | "neutral";
-  impactDetails: {
-    ticker: string;
-    reasoning: string;
-    sentiment: "positive" | "negative" | "neutral";
-  }[];
+export interface NewsArticle {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  ticker: string;
 }
-
-export type MessageType =
-  | { type: "IS_FINANCIAL_PAGE" }
-  | { type: "EXTRACT_ARTICLE" };
-
-export type MessageResponse =
-  | { isFinancial: boolean }
-  | { text: string };

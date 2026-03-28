@@ -1,3 +1,2 @@
-browser.runtime.onInstalled.addListener(() => {
-  console.log("[Yield] Extension installed.");
-});
+// Service worker — kept minimal, routing handled in popup
+export {};

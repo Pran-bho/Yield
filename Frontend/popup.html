@@ -1,59 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <link rel="stylesheet" href="src/popup/popup.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yield</title>
+  <link rel="stylesheet" href="dist/popup.css" />
 </head>
 <body>
-  <div id="app">
 
-    <header>
-      <h1>Yield</h1>
-      <span id="health-indicator" class="health-offline">Checking...</span>
-    </header>
+<div class="header">
+  <div class="wordmark">◈ YIELD<span>.</span></div>
+  <div class="engine-dot" id="engineDot" title="Checking engine..."></div>
+</div>
 
-    <nav id="tab-bar">
-      <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
-      <button class="tab-btn" data-tab="news">News</button>
-    </nav>
+<div class="tabs">
+  <div class="tab active" data-tab="scan">Scan</div>
+  <div class="tab" data-tab="news">News</div>
+</div>
 
-    <!-- Portfolio tab -->
-    <div id="tab-portfolio">
-      <section id="holdings-section">
-        <div class="section-header">
-          <h2>Portfolio</h2>
-          <div class="section-header-right">
-            <div id="portfolio-summary"></div>
-            <button id="view-toggle" title="Toggle chart view">
-              <svg id="icon-graph" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              <svg id="icon-compact" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
-        <ul id="holdings-list"></ul>
-      </section>
-
-      <section id="scan-section">
-        <button id="scan-btn" disabled>Scan Current Page</button>
-        <p id="scan-status" class="status-muted"></p>
-      </section>
-
-      <section id="result-section" hidden>
-        <h2>Analysis</h2>
-        <div id="result-content"></div>
-      </section>
-    </div>
-
-    <!-- News tab -->
-    <div id="tab-news" hidden>
-      <div id="news-feed">
-        <p id="news-status" class="status-muted">Loading headlines...</p>
-        <ul id="news-list"></ul>
+<!-- SCAN TAB -->
+<div class="tab-content active" id="tab-scan">
+  <div class="scan-panel">
+    <button class="scan-btn" id="scanBtn">Scan this page</button>
+    <div class="status" id="status"></div>
+    <div id="results" style="display:none">
+      <div class="summary" id="summaryText"></div>
+      <div id="chipsWrap" style="display:none">
+        <div class="chips-label">Holdings impact</div>
+        <div class="chips" id="chips"></div>
       </div>
     </div>
-
   </div>
-  <script src="dist/popup.js"></script>
+</div>
+
+
+<!-- NEWS TAB -->
+<div class="tab-content" id="tab-news">
+  <div class="news-panel">
+    <div class="news-toolbar">
+      <span class="news-toolbar-label">Recent · your holdings</span>
+      <button class="news-refresh-btn" id="newsRefreshBtn">↻</button>
+    </div>
+    <div id="newsList"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>yield v1.0</span>
+  <span id="footerTime"></span>
+</div>
+
+<script src="dist/popup.js"></script>
 </body>
 </html>

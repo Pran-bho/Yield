@@ -1,13 +1,14 @@
 {
   "name": "yield-extension",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "build": "node esbuild.config.js",
-    "watch": "node esbuild.config.js --watch"
+    "watch": "node -e \"require('./esbuild.config.js')\" --watch"
   },
   "devDependencies": {
-    "@types/firefox-webext-browser": "^120.0.0",
+    "@types/chrome": "^0.0.268",
     "esbuild": "^0.20.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.4.0"
   }
 }
