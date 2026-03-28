@@ -28,7 +28,8 @@
     "analyst",
     "guidance",
     "fiscal",
-    "ebitda"
+    "ebitda",
+    "diesel"
   ];
   function isFinancialPage() {
     const text = document.body.innerText.toLowerCase();

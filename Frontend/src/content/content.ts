@@ -3,7 +3,7 @@ const FINANCIAL_KEYWORDS = [
   "market cap", "dividend", "investor", "portfolio", "quarter",
   "sec filing", "ipo", "valuation", "equity", "bull market", "bear market",
   "hedge fund", "short selling", "options", "futures", "trading volume",
-  "price target", "analyst", "guidance", "fiscal", "ebitda",
+  "price target", "analyst", "guidance", "fiscal", "ebitda", "diesel",
 ];
 
 function isFinancialPage(): boolean {

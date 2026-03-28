@@ -14,12 +14,21 @@
     </header>
 
     <section id="holdings-section">
-      <h2>Your Holdings</h2>
+      <div class="section-header">
+        <h2>Portfolio</h2>
+        <div class="section-header-right">
+          <div id="portfolio-summary"></div>
+          <button id="view-toggle" title="Toggle chart view">
+            <svg id="icon-graph" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <svg id="icon-compact" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
       <ul id="holdings-list"></ul>
     </section>
 
     <section id="scan-section">
-      <button id="scan-btn" disabled>Scan This Page</button>
+      <button id="scan-btn" disabled>Scan Current Page</button>
       <p id="scan-status" class="status-muted"></p>
     </section>
 
