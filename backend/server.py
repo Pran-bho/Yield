@@ -68,4 +68,4 @@ def analyse(payload: ArticleScanPayload) -> Dict[str, Any]:
 def latest() -> Dict[str, Any]:
     if LATEST_ANALYSIS is None:
         return {"message": "No analysis yet."}
-    return LATEST_ANALYSISc
+    return LATEST_ANALYSIS

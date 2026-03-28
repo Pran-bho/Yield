@@ -109,7 +109,7 @@ with tab1:
 with tab2:
     st.subheader("Latest Result from Extension / API")
 
-    if st.button("Refresh latest", disabled=not backend_ok):
+    if st.button("Refresh latest", disabled=not backend_ok, key="refresh_latest"):
         st.rerun()
 
     if backend_ok:
@@ -118,14 +118,62 @@ with tab2:
             res.raise_for_status()
             latest = res.json()
 
-            if "result" not in latest:
-                st.info("No analysis has been run yet.")
-            else:
-                st.write("**Last request**")
-                st.json(latest["request"])
+            # Debug helper so you can see exactly what backend returned
+            with st.expander("Raw /latest response"):
+                st.json(latest)
 
-                st.write("**Last result**")
-                st.json(latest["result"])
+            # Case 1: wrapped response
+            if isinstance(latest, dict) and "result" in latest:
+                request_data = latest.get("request", {})
+                result = latest["result"]
+
+            # Case 2: direct analysis result
+            elif isinstance(latest, dict) and "summary" in latest and "sentiment" in latest:
+                request_data = {}
+                result = latest
+
+            # Case 3: no data yet / unknown shape
+            else:
+                st.info(latest.get("message", "No analysis has been run yet."))
+                st.stop()
+
+            col1, col2 = st.columns([1, 2])
+
+            with col1:
+                st.write("**Article info**")
+                if request_data:
+                    st.write(f"**Title:** {request_data.get('title', 'N/A')}")
+                    st.write(f"**URL:** {request_data.get('url', 'N/A')}")
+                else:
+                    st.write("No request metadata available.")
+
+                sentiment = result.get("sentiment", "unknown")
+                st.metric("Overall sentiment", sentiment.upper())
+
+                st.write("**Affected tickers**")
+                tickers = result.get("affectedTickers", [])
+                if tickers:
+                    for ticker in tickers:
+                        st.write(f"- {ticker}")
+                else:
+                    st.write("None detected")
+
+            with col2:
+                st.write("**Summary**")
+                st.write(result.get("summary", "No summary available."))
+
+                st.write("**Impact details**")
+                details = result.get("impactDetails", [])
+                if details:
+                    for item in details:
+                        with st.container():
+                            st.markdown(f"**{item.get('ticker', 'Unknown')}**")
+                            st.write(item.get("reasoning", "No reasoning available."))
+                            st.caption(f"Sentiment: {item.get('sentiment', 'unknown')}")
+                else:
+                    st.write("No detailed impacts found.")
 
         except requests.RequestException as exc:
             st.error(f"Could not fetch latest result: {exc}")
+        except Exception as exc:
+            st.error(f"Unexpected error while rendering latest result: {exc}")
