@@ -36,24 +36,48 @@ header h1 {
   letter-spacing: -0.3px;
 }
 
-.health-ok {
-  font-size: 11px;
-  color: #4ade80;
+.health-ok      { font-size: 11px; color: #4ade80; }
+.health-offline { font-size: 11px; color: #f87171; }
+
+/* Section heading row */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
-.health-offline {
-  font-size: 11px;
-  color: #f87171;
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
 }
 
-/* Section headings */
+/* View toggle button */
+#view-toggle {
+  background: none;
+  border: 1px solid #1e2433;
+  border-radius: 4px;
+  color: #475569;
+  cursor: pointer;
+  padding: 3px 5px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+#view-toggle:hover {
+  color: #94a3b8;
+  border-color: #334155;
+}
+
 h2 {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: #64748b;
-  margin-bottom: 8px;
 }
 
 h3 {
@@ -66,22 +90,56 @@ h3 {
   margin-bottom: 6px;
 }
 
-/* Holdings */
+/* Portfolio summary */
+#portfolio-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+}
+
+.summary-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.summary-pnl {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* Holdings list */
 #holdings-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .holding-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
-  background: #161b27;
-  border: 1px solid #1e2433;
-  border-radius: 6px;
-  padding: 6px 10px;
+  gap: 8px;
+  background: #1a2235;
+  border: 1px solid #2a3347;
+  border-left: 3px solid transparent;
+  border-radius: 7px;
+  padding: 7px 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.holding-item.holding-pos { border-left-color: #4ade80; }
+.holding-item.holding-neg { border-left-color: #f87171; }
+
+.holding-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .ticker {
@@ -91,8 +149,86 @@ h3 {
   font-family: "SF Mono", "Fira Code", monospace;
 }
 
-.holding-details {
-  color: #94a3b8;
+.holding-meta {
+  color: #475569;
+  font-size: 11px;
+}
+
+/* Sparkline container */
+.holding-spark {
+  display: flex;
+  align-items: center;
+}
+
+.holding-spark svg {
+  display: block;
+}
+
+/* Right column: price + pnl */
+.holding-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.current-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.pnl {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.pos { color: #4ade80; }
+.neg { color: #f87171; }
+
+/* Compact mode */
+#holdings-list.compact-mode {
+  gap: 5px;
+}
+
+#holdings-list.compact-mode .holding-item {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+#holdings-list.compact-mode .holding-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  gap: 0;
+}
+
+#holdings-list.compact-mode .holding-spark {
+  display: none;
+}
+
+#holdings-list.compact-mode .holding-left {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+}
+
+#holdings-list.compact-mode .holding-meta {
+  color: #334155;
+}
+
+#holdings-list.compact-mode .holding-right {
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+#holdings-list.compact-mode .current-price {
   font-size: 12px;
 }
 
@@ -116,9 +252,7 @@ h3 {
   width: 100%;
 }
 
-#scan-btn:hover:not(:disabled) {
-  background: #22c55e;
-}
+#scan-btn:hover:not(:disabled) { background: #22c55e; }
 
 #scan-btn:disabled {
   background: #1e2433;
@@ -126,7 +260,7 @@ h3 {
   cursor: not-allowed;
 }
 
-/* Status messages */
+/* Status */
 .status-info    { color: #94a3b8; font-size: 12px; }
 .status-muted   { color: #475569; font-size: 12px; }
 .status-error   { color: #f87171; font-size: 12px; }
@@ -138,9 +272,7 @@ h3 {
   padding-top: 12px;
 }
 
-.result-header {
-  margin-bottom: 8px;
-}
+.result-header { margin-bottom: 8px; }
 
 .overall-sentiment {
   display: inline-block;
@@ -200,7 +332,4 @@ h3 {
   line-height: 1.4;
 }
 
-.muted {
-  color: #475569;
-  font-size: 12px;
-}
+.muted { color: #475569; font-size: 12px; }
