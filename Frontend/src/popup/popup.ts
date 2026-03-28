@@ -239,6 +239,128 @@ function setStatus(msg: string, type: "info" | "muted" | "error" | "success") {
   scanStatus.className = `status-${type}`;
 }
 
+// --- Tab switching ---
+const tabPortfolio = document.getElementById("tab-portfolio")!;
+const tabNews = document.getElementById("tab-news")!;
+const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
+let newsLoaded = false;
+
+tabBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.tab!;
+    tabBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    tabPortfolio.hidden = target !== "portfolio";
+    tabNews.hidden = target !== "news";
+    if (target === "news" && !newsLoaded) {
+      newsLoaded = true;
+      loadNews();
+    }
+  });
+});
+
+// --- News feed ---
+interface NewsItem {
+  ticker: string;
+  title: string;
+  link: string;
+  pubDate: string;
+}
+
+async function fetchAllNews(): Promise<NewsItem[]> {
+  const tickers = HOLDINGS.map((h) => h.ticker).join(",");
+  const res = await fetch(`${DESKTOP_URL}/news?tickers=${tickers}`, {
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`News fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data.items as NewsItem[];
+}
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+async function loadNews() {
+  const newsList = document.getElementById("news-list")!;
+  const newsStatus = document.getElementById("news-status")!;
+
+  newsStatus.textContent = "Loading headlines...";
+  newsStatus.className = "status-muted";
+  newsList.innerHTML = "";
+
+  try {
+    const allItems = await fetchAllNews();
+
+    if (allItems.length === 0) {
+      newsStatus.textContent = "No headlines found.";
+      return;
+    }
+
+    newsStatus.textContent = "";
+
+    // Render cards with loading state, capture refs
+    const cardEls: HTMLElement[] = [];
+    allItems.forEach((item) => {
+      const li = document.createElement("li");
+      li.className = "news-item";
+      li.innerHTML = `
+        <div class="news-meta">
+          <span class="news-ticker">${item.ticker}</span>
+          <span class="news-time">${relativeTime(item.pubDate)}</span>
+        </div>
+        <a class="news-title" href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+        <div class="news-item-analysis loading">Analysing...</div>
+      `;
+      newsList.appendChild(li);
+      cardEls.push(li);
+    });
+
+    newsStatus.textContent = "";
+
+    // Analyse each headline in parallel
+    const analyses = await Promise.allSettled(
+      allItems.map((item) =>
+        fetch(`${DESKTOP_URL}/analyse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: item.link, title: item.title, body: item.title, holdings: HOLDINGS }),
+        }).then((r) => r.json() as Promise<AnalysisResult>)
+      )
+    );
+
+    analyses.forEach((result, i) => {
+      const analysisEl = cardEls[i].querySelector(".news-item-analysis")!;
+      analysisEl.classList.remove("loading");
+
+      if (result.status === "rejected") {
+        analysisEl.classList.add("analysis-error");
+        analysisEl.textContent = "Analysis unavailable";
+        return;
+      }
+
+      const r = result.value;
+      const sc = `impact-${r.sentiment}`;
+      const affected = r.affectedTickers.length > 0
+        ? r.affectedTickers.map((t) => `<span class="news-affected-ticker">${t}</span>`).join("")
+        : `<span class="muted">No holdings affected</span>`;
+
+      analysisEl.innerHTML = `
+        <span class="news-sentiment-pill ${sc}">${r.sentiment}</span>
+        <span class="news-affected">${affected}</span>
+      `;
+    });
+  } catch {
+    newsStatus.textContent = "Could not reach desktop app.";
+    newsStatus.className = "status-error";
+  }
+}
+
 function renderResult(result: AnalysisResult) {
   resultSection.hidden = false;
   const sentimentClass = `sentiment-${result.sentiment}`;
